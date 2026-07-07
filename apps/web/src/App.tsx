@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createEvaluatedReceipt } from "@taxpilot/rules";
+import { createEvaluatedReceipt, getCategoryRuleMetadata } from "@taxpilot/rules";
 import {
   expenseCategories,
   mockReceipts,
@@ -146,6 +146,7 @@ export default function App() {
       amount: receipt.amount,
       category: receipt.category,
       status: receipt.status,
+      ruleMetadata: getCategoryRuleMetadata(receipt.category),
       openQuestions: receipt.missingInformation.filter((question) => question.status === "open").map((question) => question.question),
       preliminaryExplanation: receipt.ruleEvaluation?.explanation
     }))
