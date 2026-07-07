@@ -8,6 +8,10 @@ const port = Number(process.env.PORT ?? 4000);
 app.use(cors({ origin: process.env.WEB_ORIGIN ?? "http://localhost:5173" }));
 app.use(express.json());
 
+app.get("/", (_req, res) => {
+  res.json({ service: "taxpilot-api", phase: "1" });
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
@@ -39,6 +43,10 @@ app.get("/api/receipts/:id", (req, res) => {
   res.json(receipt);
 });
 
-app.listen(port, () => {
-  console.log(`TaxPilot AI API listening on http://localhost:${port}`);
-});
+if (process.env.VERCEL !== "1") {
+  app.listen(port, () => {
+    console.log("TaxPilot AI API listening on http://localhost:" + port);
+  });
+}
+
+export default app;
