@@ -11,6 +11,8 @@ import { attachCategoryRuleMetadata } from "./taxRuleMetadataBridge.js";
 import type { CategoryRuleMetadata } from "./taxRuleMetadata.js";
 
 export type RuleSeverity = "info" | "warning" | "critical";
+export { getCategoryRuleMetadata } from "./taxRuleMetadata.js";
+export type { CategoryRuleMetadata, RuleReviewLevel } from "./taxRuleMetadata.js";
 
 export interface WorkspaceRuleInsight {
   id: string;
