@@ -30,6 +30,39 @@ export interface ExportApiResponse {
   receipts: Receipt[];
 }
 
+export interface TaxRuleRegistryResponse {
+  registryVersion: string;
+  source: string;
+  storageTarget: string;
+  sources: Array<{
+    id: string;
+    label: string;
+    sourceType: string;
+    jurisdiction: string;
+    officialUrl: string;
+    verifiedAt: string;
+    notes: string;
+  }>;
+  rules: Array<{
+    id: string;
+    title: string;
+    category: string;
+    jurisdiction: string;
+    reviewLevel: string;
+    appAction: string;
+    status: string;
+    version: string;
+    sourceIds: string[];
+    requiredEvidence: string[];
+  }>;
+  mappings: Array<{
+    appCategory: string;
+    ruleId: string;
+    priority: number;
+    isDefault: boolean;
+  }>;
+}
+
 export class ReceiptApiError extends Error {
   constructor(message: string, public issues: ValidationIssue[] = []) {
     super(message);
@@ -70,4 +103,9 @@ export async function markQuestionAnsweredViaApi(receiptId: string, questionId: 
 export async function fetchBackendExport(): Promise<ExportApiResponse> {
   const response = await fetch("/api/export");
   return readJson<ExportApiResponse>(response);
+}
+
+export async function fetchTaxRuleRegistry(): Promise<TaxRuleRegistryResponse> {
+  const response = await fetch("/api/tax-rules");
+  return readJson<TaxRuleRegistryResponse>(response);
 }
