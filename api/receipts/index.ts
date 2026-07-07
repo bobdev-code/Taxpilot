@@ -1,6 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mockReceipts } from "@taxpilot/shared";
 
-export default function handler(_req: VercelRequest, res: VercelResponse) {
+type JsonResponse = {
+  status: (code: number) => JsonResponse;
+  json: (body: unknown) => void;
+};
+
+export default function handler(_req: unknown, res: JsonResponse) {
   res.status(200).json({ receipts: mockReceipts });
 }
