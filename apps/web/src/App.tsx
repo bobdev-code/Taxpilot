@@ -10,6 +10,7 @@ import {
   type ReceiptDraftInput,
   type ValidationIssue
 } from "@taxpilot/shared";
+import { ReceiptRuleExplanation } from "./components/ReceiptRuleExplanation";
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
@@ -329,6 +330,7 @@ export default function App() {
                   </div>
                   <p className="mt-4 text-sm leading-6 text-slate-600">{selectedReceipt.ruleEvaluation?.explanation}</p>
                 </div>
+                <ReceiptRuleExplanation receipt={selectedReceipt} />
                 {selectedReceipt.missingInformation.length > 0 ? selectedReceipt.missingInformation.map((question) => (
                   <div key={question.id} className="rounded-2xl border border-slate-100 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
