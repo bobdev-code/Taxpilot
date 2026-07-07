@@ -1,31 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
+import { createEvaluatedReceipt } from "@taxpilot/rules";
 import {
+  expenseCategories,
   mockReceipts,
+  validateReceiptInput,
   type ExpenseCategory,
-  type MissingInformationQuestion,
+  type NormalizedReceiptInput,
   type Receipt,
-  type ReceiptStatus,
-  type RuleEvaluationResult
+  type ReceiptDraftInput,
+  type ValidationIssue
 } from "@taxpilot/shared";
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
+import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, type ApiPersistenceInfo } from "./lib/apiClient";
 import { formatCurrency, formatDate } from "./lib/format";
 
-const STORAGE_KEY = "taxpilot.phase3.receipts";
+const STORAGE_KEY = "taxpilot.phase4.receipts";
 
-const categories: ExpenseCategory[] = [
-  "Software / subscriptions",
-  "Hardware / equipment",
-  "Business meals",
-  "Travel",
-  "Office supplies",
-  "Education / training",
-  "Marketing",
-  "Phone / internet",
-  "Professional services",
-  "Other"
-];
+type BackendState = "checking" | "api-ready" | "local-fallback";
 
 type ReceiptForm = {
   merchant: string;
@@ -49,74 +42,6 @@ const initialForm: ReceiptForm = {
   businessPurpose: ""
 };
 
-function createQuestion(receiptId: string, fieldKey: string, question: string): MissingInformationQuestion {
-  return { id: `${receiptId}_${fieldKey}`, receiptId, fieldKey, question, isRequiredForExport: true, status: "open" };
-}
-
-function evaluateReceipt(base: Omit<Receipt, "missingInformation" | "ruleEvaluation" | "status" | "recommendedForAccountantReview">): {
-  status: ReceiptStatus;
-  missingInformation: MissingInformationQuestion[];
-  ruleEvaluation: RuleEvaluationResult;
-  recommendedForAccountantReview: boolean;
-} {
-  const missing: MissingInformationQuestion[] = [];
-  const description = base.description?.toLowerCase() ?? "";
-
-  if (base.category === "Business meals") {
-    if (!description.includes("attendee:")) missing.push(createQuestion(base.id, "businessPartnerName", "Who attended the business meal?"));
-    if (!description.includes("purpose:")) missing.push(createQuestion(base.id, "businessPurpose", "What was the concrete business purpose?"));
-  }
-  if (base.category === "Hardware / equipment" && base.amount >= 800 && !description.includes("business usage:")) {
-    missing.push(createQuestion(base.id, "businessUsagePercentage", "What estimated percentage is used for business purposes?"));
-  }
-  if ((base.category === "Travel" || base.category === "Other") && !description.trim()) {
-    missing.push(createQuestion(base.id, "businessContext", "Add short business context before export."));
-  }
-
-  const recommendedForAccountantReview = ["Business meals", "Hardware / equipment", "Other"].includes(base.category);
-  const status: ReceiptStatus = missing.length > 0 ? "needs_information" : recommendedForAccountantReview ? "needs_accountant_review" : "potentially_deductible";
-
-  return {
-    status,
-    missingInformation: missing,
-    recommendedForAccountantReview,
-    ruleEvaluation: {
-      id: `rule_${base.id}`,
-      receiptId: base.id,
-      classification: missing.length > 0 ? "needs_more_information" : recommendedForAccountantReview ? "recommended_for_accountant_review" : "preliminary",
-      riskLevel: missing.length > 0 || recommendedForAccountantReview ? "medium" : "low",
-      explanation: missing.length > 0
-        ? "Deterministic Phase 3 rule check found missing context before export."
-        : "Deterministic Phase 3 rule check prepared this item for accountant review.",
-      suggestedNextStep: missing.length > 0 ? "Clarify the open questions." : "Keep evidence available for accountant review.",
-      evaluatedAt: new Date().toISOString()
-    }
-  };
-}
-
-function buildReceipt(form: ReceiptForm): Receipt {
-  const id = `rec_${Date.now()}`;
-  const descriptionParts = [form.description.trim()];
-  if (form.businessUsagePercentage.trim()) descriptionParts.push(`Business usage: ${form.businessUsagePercentage.trim()}%`);
-  if (form.businessPartnerName.trim()) descriptionParts.push(`Attendee: ${form.businessPartnerName.trim()}`);
-  if (form.businessPurpose.trim()) descriptionParts.push(`Purpose: ${form.businessPurpose.trim()}`);
-
-  const base = {
-    id,
-    merchant: form.merchant.trim() || "Unlabeled merchant",
-    amount: Number(form.amount || 0),
-    currency: "EUR" as const,
-    date: form.date,
-    category: form.category,
-    description: descriptionParts.filter(Boolean).join(" | "),
-    preliminaryExplanation: "Created manually in Phase 3. Classification is deterministic and preliminary.",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  return { ...base, ...evaluateReceipt(base) };
-}
-
 function loadReceipts(): Receipt[] {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (!stored) return mockReceipts;
@@ -126,6 +51,23 @@ function loadReceipts(): Receipt[] {
   } catch {
     return mockReceipts;
   }
+}
+
+function toDraftInput(form: ReceiptForm): ReceiptDraftInput {
+  return {
+    merchant: form.merchant,
+    amount: form.amount,
+    date: form.date,
+    category: form.category,
+    description: form.description,
+    businessUsagePercentage: form.businessUsagePercentage,
+    businessPartnerName: form.businessPartnerName,
+    businessPurpose: form.businessPurpose
+  };
+}
+
+function createLocalReceipt(data: NormalizedReceiptInput): Receipt {
+  return createEvaluatedReceipt(data, { id: `local_rec_${Date.now()}` });
 }
 
 function Kpi({ label, value, helper }: { label: string; value: string; helper: string }) {
@@ -138,10 +80,29 @@ function Kpi({ label, value, helper }: { label: string; value: string; helper: s
   );
 }
 
+function BackendBadge({ state, persistence }: { state: BackendState; persistence?: ApiPersistenceInfo }) {
+  const label = state === "checking" ? "checking API" : state === "api-ready" ? `API: ${persistence?.mode ?? "ready"}` : "local fallback";
+  const classes = state === "api-ready" ? "bg-emerald-50 text-emerald-700" : state === "checking" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-800";
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${classes}`}>{label}</span>;
+}
+
 export default function App() {
   const [receipts, setReceipts] = useState<Receipt[]>(() => loadReceipts());
   const [form, setForm] = useState<ReceiptForm>(initialForm);
   const [selectedReceiptId, setSelectedReceiptId] = useState(receipts[0]?.id ?? "");
+  const [backendState, setBackendState] = useState<BackendState>("checking");
+  const [persistence, setPersistence] = useState<ApiPersistenceInfo | undefined>();
+  const [formIssues, setFormIssues] = useState<ValidationIssue[]>([]);
+  const [exportSource, setExportSource] = useState<"browser" | "api">("browser");
+
+  useEffect(() => {
+    fetchReceiptsFromApi()
+      .then((response) => {
+        setBackendState("api-ready");
+        setPersistence(response.persistence);
+      })
+      .catch(() => setBackendState("local-fallback"));
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(receipts));
@@ -156,9 +117,11 @@ export default function App() {
 
   const exportPreview = useMemo(() => ({
     generatedAt: new Date().toISOString(),
-    phase: "3",
+    phase: "4",
+    source: exportSource,
     disclaimer: "Preliminary workflow export. Not legally binding tax advice.",
     readinessScore,
+    persistence,
     receipts: receipts.map((receipt) => ({
       id: receipt.id,
       merchant: receipt.merchant,
@@ -169,11 +132,29 @@ export default function App() {
       openQuestions: receipt.missingInformation.filter((question) => question.status === "open").map((question) => question.question),
       preliminaryExplanation: receipt.ruleEvaluation?.explanation
     }))
-  }), [readinessScore, receipts]);
+  }), [exportSource, persistence, readinessScore, receipts]);
 
-  function addReceipt() {
-    if (!form.merchant.trim() || Number(form.amount) <= 0) return;
-    const receipt = buildReceipt(form);
+  async function addReceipt() {
+    const draft = toDraftInput(form);
+    const validation = validateReceiptInput(draft);
+    if (!validation.ok) {
+      setFormIssues(validation.issues);
+      return;
+    }
+
+    let receipt: Receipt;
+    try {
+      const response = await createReceiptViaApi(draft);
+      receipt = response.receipt;
+      setPersistence(response.persistence);
+      setBackendState("api-ready");
+      setFormIssues([]);
+    } catch {
+      receipt = createLocalReceipt(validation.data);
+      setBackendState("local-fallback");
+      setFormIssues([]);
+    }
+
     setReceipts((current) => [receipt, ...current]);
     setSelectedReceiptId(receipt.id);
     setForm({ ...initialForm, date: new Date().toISOString().slice(0, 10) });
@@ -199,8 +180,18 @@ export default function App() {
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
-  function downloadExport() {
-    const blob = new Blob([JSON.stringify(exportPreview, null, 2)], { type: "application/json" });
+  async function downloadExport() {
+    let payload: unknown = exportPreview;
+    try {
+      const apiExport = await fetchBackendExport();
+      payload = apiExport;
+      setPersistence(apiExport.persistence);
+      setExportSource("api");
+    } catch {
+      setExportSource("browser");
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -215,9 +206,9 @@ export default function App() {
         <header className="rounded-[2rem] bg-navy-900 p-6 text-white shadow-soft sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 3 started</span>
-              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Receipt workflow plus deterministic rule cockpit.</h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manual entries are stored in your browser, checked with transparent rule logic, and prepared for a structured non-binding export.</p>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 4 API contract</span>
+              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Validated receipt workflow with backend-ready persistence contract.</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Receipt intake now validates shared inputs, tries the API first, and keeps a safe local fallback until durable database storage is configured.</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
               <p className="text-sm font-semibold text-blue-100">Export readiness</p>
@@ -228,6 +219,14 @@ export default function App() {
         </header>
 
         <SafetyDisclaimer />
+
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">Phase 4 backend bridge</p>
+            <p className="mt-1 text-sm text-slate-500">API mutations are validated and ready for a durable DB adapter. Current serverless storage is explicitly marked as ephemeral.</p>
+          </div>
+          <BackendBadge state={backendState} persistence={persistence} />
+        </section>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi label="Receipts" value={String(receipts.length)} helper="Demo and manually added items" />
@@ -242,18 +241,24 @@ export default function App() {
           <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-500">Manual receipt intake</p>
+                <p className="text-sm font-medium text-slate-500">Validated receipt intake</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">Add an expense</h2>
               </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">local-first</span>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">API-first</span>
             </div>
+
+            {formIssues.length > 0 ? (
+              <div className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+                {formIssues.map((issue) => <p key={`${issue.field}-${issue.message}`}>• {issue.field}: {issue.message}</p>)}
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <input value={form.merchant} onChange={(event) => setForm({ ...form, merchant: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Merchant" />
               <input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} type="number" min="0" step="0.01" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Amount EUR" />
               <input value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} type="date" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" />
               <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ExpenseCategory })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4">
-                {categories.map((category) => <option key={category}>{category}</option>)}
+                {expenseCategories.map((category) => <option key={category}>{category}</option>)}
               </select>
             </div>
 
