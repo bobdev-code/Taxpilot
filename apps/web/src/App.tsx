@@ -11,7 +11,7 @@ import {
   type ValidationIssue
 } from "@taxpilot/shared";
 import { AccountantPackageSummary } from "./components/AccountantPackageSummary";
-import { ReceiptRuleExplanation } from "./components/ReceiptRuleExplanation";
+import { ReceiptDetailPanel } from "./components/ReceiptDetailPanel";
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
@@ -320,30 +320,7 @@ export default function App() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">Selected receipt</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">Review questions</h2>
-            {selectedReceipt ? (
-              <div className="mt-6 space-y-4">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div><p className="font-semibold text-slate-950">{selectedReceipt.merchant}</p><p className="mt-1 text-sm text-slate-500">{selectedReceipt.description || "No context added yet."}</p></div>
-                    <StatusBadge status={selectedReceipt.status} />
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-600">{selectedReceipt.ruleEvaluation?.explanation}</p>
-                </div>
-                <ReceiptRuleExplanation receipt={selectedReceipt} />
-                {selectedReceipt.missingInformation.length > 0 ? selectedReceipt.missingInformation.map((question) => (
-                  <div key={question.id} className="rounded-2xl border border-slate-100 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div><p className="font-semibold text-slate-950">{question.question}</p><p className="mt-1 text-xs uppercase tracking-wide text-slate-500">{question.status}</p></div>
-                      {question.status === "open" ? <button onClick={() => markQuestionAnswered(selectedReceipt.id, question.id)} className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">Mark clarified</button> : null}
-                    </div>
-                  </div>
-                )) : <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700">No open questions for this receipt.</p>}
-              </div>
-            ) : null}
-          </article>
+          {selectedReceipt ? <ReceiptDetailPanel receipt={selectedReceipt} onMarkQuestionAnswered={markQuestionAnswered} /> : null}
 
           <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
