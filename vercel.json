@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
+  "installCommand": "npm install --ignore-scripts",
+  "buildCommand": "npm run build:shared && npm run build:web",
   "outputDirectory": "apps/web/dist"
 }
