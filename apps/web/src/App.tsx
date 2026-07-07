@@ -13,10 +13,10 @@ import {
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
-import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, type ApiPersistenceInfo } from "./lib/apiClient";
+import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, markQuestionAnsweredViaApi, type ApiPersistenceInfo } from "./lib/apiClient";
 import { formatCurrency, formatDate } from "./lib/format";
 
-const STORAGE_KEY = "taxpilot.phase4.receipts";
+const STORAGE_KEY = "taxpilot.phase5.receipts";
 
 type BackendState = "checking" | "api-ready" | "local-fallback";
 
@@ -70,6 +70,17 @@ function createLocalReceipt(data: NormalizedReceiptInput): Receipt {
   return createEvaluatedReceipt(data, { id: `local_rec_${Date.now()}` });
 }
 
+function locallyMarkQuestionAnswered(receipt: Receipt, questionId: string): Receipt {
+  const missingInformation = receipt.missingInformation.map((question) => question.id === questionId ? { ...question, status: "answered" as const } : question);
+  const hasOpenQuestions = missingInformation.some((question) => question.status === "open");
+  return {
+    ...receipt,
+    missingInformation,
+    status: hasOpenQuestions ? "needs_information" : receipt.recommendedForAccountantReview ? "needs_accountant_review" : "potentially_deductible",
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function Kpi({ label, value, helper }: { label: string; value: string; helper: string }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -100,6 +111,10 @@ export default function App() {
       .then((response) => {
         setBackendState("api-ready");
         setPersistence(response.persistence);
+        if (response.persistence.durability === "durable") {
+          setReceipts(response.receipts);
+          setSelectedReceiptId(response.receipts[0]?.id ?? "");
+        }
       })
       .catch(() => setBackendState("local-fallback"));
   }, []);
@@ -117,7 +132,7 @@ export default function App() {
 
   const exportPreview = useMemo(() => ({
     generatedAt: new Date().toISOString(),
-    phase: "4",
+    phase: "5",
     source: exportSource,
     disclaimer: "Preliminary workflow export. Not legally binding tax advice.",
     readinessScore,
@@ -160,18 +175,18 @@ export default function App() {
     setForm({ ...initialForm, date: new Date().toISOString().slice(0, 10) });
   }
 
-  function markQuestionAnswered(receiptId: string, questionId: string) {
-    setReceipts((current) => current.map((receipt) => {
-      if (receipt.id !== receiptId) return receipt;
-      const missingInformation = receipt.missingInformation.map((question) => question.id === questionId ? { ...question, status: "answered" as const } : question);
-      const hasOpenQuestions = missingInformation.some((question) => question.status === "open");
-      return {
-        ...receipt,
-        missingInformation,
-        status: hasOpenQuestions ? "needs_information" : receipt.recommendedForAccountantReview ? "needs_accountant_review" : "potentially_deductible",
-        updatedAt: new Date().toISOString()
-      };
-    }));
+  async function markQuestionAnswered(receiptId: string, questionId: string) {
+    try {
+      const response = await markQuestionAnsweredViaApi(receiptId, questionId);
+      setPersistence(response.persistence);
+      setBackendState("api-ready");
+      setReceipts((current) => current.map((receipt) => receipt.id === receiptId ? response.receipt : receipt));
+      return;
+    } catch {
+      setBackendState("local-fallback");
+    }
+
+    setReceipts((current) => current.map((receipt) => receipt.id === receiptId ? locallyMarkQuestionAnswered(receipt, questionId) : receipt));
   }
 
   function resetDemo() {
@@ -206,9 +221,9 @@ export default function App() {
         <header className="rounded-[2rem] bg-navy-900 p-6 text-white shadow-soft sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 4 API contract</span>
-              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Validated receipt workflow with backend-ready persistence contract.</h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Receipt intake now validates shared inputs, tries the API first, and keeps a safe local fallback until durable database storage is configured.</p>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 5 storage adapter</span>
+              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Durable-ready receipt workflow with optional Supabase storage.</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Receipt intake now uses a storage adapter that can switch from memory fallback to durable Supabase/PostgREST storage through environment variables.</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
               <p className="text-sm font-semibold text-blue-100">Export readiness</p>
@@ -222,14 +237,14 @@ export default function App() {
 
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-sm font-semibold text-slate-950">Phase 4 backend bridge</p>
-            <p className="mt-1 text-sm text-slate-500">API mutations are validated and ready for a durable DB adapter. Current serverless storage is explicitly marked as ephemeral.</p>
+            <p className="text-sm font-semibold text-slate-950">Phase 5 storage bridge</p>
+            <p className="mt-1 text-sm text-slate-500">Memory fallback remains safe for demos. Add Supabase environment variables to activate durable storage without changing the frontend API contract.</p>
           </div>
           <BackendBadge state={backendState} persistence={persistence} />
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi label="Receipts" value={String(receipts.length)} helper="Demo and manually added items" />
+          <Kpi label="Receipts" value={String(receipts.length)} helper="Demo, API and manually added items" />
           <Kpi label="Total expenses" value={formatCurrency(totalExpenses)} helper="Preliminary workspace total" />
           <Kpi label="Open questions" value={String(openQuestions.length)} helper="Must be clarified before export" />
           <Kpi label="Review items" value={String(reviewCount)} helper="Recommended for accountant review" />
@@ -244,7 +259,7 @@ export default function App() {
                 <p className="text-sm font-medium text-slate-500">Validated receipt intake</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">Add an expense</h2>
               </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">API-first</span>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">storage-adapter</span>
             </div>
 
             {formIssues.length > 0 ? (
