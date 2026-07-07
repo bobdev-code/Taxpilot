@@ -13,6 +13,7 @@ import {
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
+import { TaxRuleRegistryPanel } from "./components/TaxRuleRegistryPanel";
 import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, markQuestionAnsweredViaApi, type ApiPersistenceInfo } from "./lib/apiClient";
 import { formatCurrency, formatDate } from "./lib/format";
 
@@ -132,7 +133,7 @@ export default function App() {
 
   const exportPreview = useMemo(() => ({
     generatedAt: new Date().toISOString(),
-    phase: "5",
+    phase: "6.1",
     source: exportSource,
     disclaimer: "Preliminary workflow export. Not legally binding tax advice.",
     readinessScore,
@@ -221,9 +222,9 @@ export default function App() {
         <header className="rounded-[2rem] bg-navy-900 p-6 text-white shadow-soft sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 5 storage adapter</span>
-              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Durable-ready receipt workflow with optional Supabase storage.</h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Receipt intake now uses a storage adapter that can switch from memory fallback to durable Supabase/PostgREST storage through environment variables.</p>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 6.1 rule registry</span>
+              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Source-backed tax workflow with durable-ready storage.</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Receipt intake, deterministic rule checks and accountant export now reference a structured tax rule registry that can later move into Supabase.</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
               <p className="text-sm font-semibold text-blue-100">Export readiness</p>
@@ -237,8 +238,8 @@ export default function App() {
 
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-sm font-semibold text-slate-950">Phase 5 storage bridge</p>
-            <p className="mt-1 text-sm text-slate-500">Memory fallback remains safe for demos. Add Supabase environment variables to activate durable storage without changing the frontend API contract.</p>
+            <p className="text-sm font-semibold text-slate-950">Storage and rule registry bridge</p>
+            <p className="mt-1 text-sm text-slate-500">Memory fallback remains safe for demos. Supabase can later provide durable receipt storage and a database-backed tax rule registry without changing the frontend API contract.</p>
           </div>
           <BackendBadge state={backendState} persistence={persistence} />
         </section>
@@ -251,6 +252,7 @@ export default function App() {
         </section>
 
         <RuleEngineCockpit receipts={receipts} />
+        <TaxRuleRegistryPanel />
 
         <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
