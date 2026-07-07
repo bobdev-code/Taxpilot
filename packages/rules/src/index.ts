@@ -9,6 +9,7 @@ import {
 } from "@taxpilot/shared";
 
 export type RuleSeverity = "info" | "warning" | "critical";
+export type ReviewLevel = "low" | "medium" | "high" | "tax_advisor_required";
 
 export interface WorkspaceRuleInsight {
   id: string;
@@ -17,6 +18,9 @@ export interface WorkspaceRuleInsight {
   category?: ExpenseCategory | "Workspace";
   message: string;
   evidenceRequirements: string[];
+  taxRuleIds?: string[];
+  sourceIds?: string[];
+  reviewLevel?: ReviewLevel;
 }
 
 export interface WorkspaceRuleEvaluation {
@@ -46,6 +50,15 @@ function createQuestion(receiptId: string, fieldKey: string, question: string): 
   return { id: `${receiptId}_${fieldKey}`, receiptId, fieldKey, question, isRequiredForExport: true, status: "open" };
 }
 
+function sourceBackedMeta(category: ExpenseCategory): Pick<WorkspaceRuleInsight, "taxRuleIds" | "sourceIds" | "reviewLevel"> {
+  if (category === "Business meals") return { taxRuleIds: ["de-business-meal-v2"], sourceIds: ["de-estg-4", "de-ustg-14"], reviewLevel: "high" };
+  if (category === "Hardware / equipment") return { taxRuleIds: ["de-equipment-asset-v2"], sourceIds: ["de-estg-6"], reviewLevel: "high" };
+  if (category === "Rent / home office") return { taxRuleIds: ["de-home-office-v1"], sourceIds: ["de-estg-4"], reviewLevel: "tax_advisor_required" };
+  if (category === "Travel") return { taxRuleIds: ["de-travel-v1"], sourceIds: ["de-estg-4"], reviewLevel: "medium" };
+  if (category === "Marketing") return { taxRuleIds: ["de-gifts-v1"], sourceIds: ["de-estg-4"], reviewLevel: "high" };
+  return { taxRuleIds: ["de-business-purpose-v2"], sourceIds: ["de-estg-4"], reviewLevel: "medium" };
+}
+
 export function evaluateReceipt(receipt: Pick<Receipt, "id" | "merchant" | "amount" | "category" | "description">, now = new Date().toISOString()): ReceiptEvaluation {
   const missing: MissingInformationQuestion[] = [];
   const description = receipt.description?.toLowerCase() ?? "";
@@ -59,11 +72,15 @@ export function evaluateReceipt(receipt: Pick<Receipt, "id" | "merchant" | "amou
     missing.push(createQuestion(receipt.id, "businessUsagePercentage", "What estimated percentage is used for business purposes?"));
   }
 
+  if (receipt.category === "Rent / home office" && !description.trim()) {
+    missing.push(createQuestion(receipt.id, "homeOfficeContext", "Describe the workspace and business-use context for accountant review."));
+  }
+
   if ((receipt.category === "Travel" || receipt.category === "Other") && !description.trim()) {
     missing.push(createQuestion(receipt.id, "businessContext", "Add short business context before export."));
   }
 
-  const recommendedForAccountantReview = ["Business meals", "Hardware / equipment", "Other"].includes(receipt.category);
+  const recommendedForAccountantReview = ["Business meals", "Hardware / equipment", "Rent / home office", "Marketing", "Other"].includes(receipt.category);
   const status: ReceiptStatus = missing.length > 0 ? "needs_information" : recommendedForAccountantReview ? "needs_accountant_review" : "potentially_deductible";
 
   return {
@@ -76,8 +93,8 @@ export function evaluateReceipt(receipt: Pick<Receipt, "id" | "merchant" | "amou
       classification: missing.length > 0 ? "needs_more_information" : recommendedForAccountantReview ? "recommended_for_accountant_review" : "preliminary",
       riskLevel: missing.length > 0 || recommendedForAccountantReview ? "medium" : "low",
       explanation: missing.length > 0
-        ? "Deterministic Phase 4 rule check found missing context before export."
-        : "Deterministic Phase 4 rule check prepared this item for accountant review.",
+        ? "Source-backed workflow check found missing context before export."
+        : "Source-backed workflow check prepared this item for accountant review.",
       suggestedNextStep: missing.length > 0 ? "Clarify the open questions." : "Keep evidence available for accountant review.",
       evaluatedAt: now
     }
@@ -95,7 +112,7 @@ export function createEvaluatedReceipt(input: NormalizedReceiptInput, options: C
     date: input.date,
     category: input.category,
     description: buildReceiptDescription(input),
-    preliminaryExplanation: "Created through the Phase 4 validated receipt contract. Classification is deterministic and preliminary.",
+    preliminaryExplanation: "Created through the validated receipt contract. Classification is deterministic and preliminary.",
     createdAt: now,
     updatedAt: now
   };
@@ -113,6 +130,7 @@ function isReviewItem(receipt: Receipt): boolean {
 
 function createInsight(receipt: Receipt): WorkspaceRuleInsight | null {
   const openQuestions = receipt.missingInformation.filter((question) => question.status === "open");
+  const meta = sourceBackedMeta(receipt.category);
 
   if (openQuestions.length > 0) {
     return {
@@ -121,7 +139,8 @@ function createInsight(receipt: Receipt): WorkspaceRuleInsight | null {
       severity: "critical",
       category: receipt.category,
       message: "This receipt should not be exported as ready until required context is clarified.",
-      evidenceRequirements: openQuestions.map((question) => question.question)
+      evidenceRequirements: openQuestions.map((question) => question.question),
+      ...meta
     };
   }
 
@@ -132,18 +151,32 @@ function createInsight(receipt: Receipt): WorkspaceRuleInsight | null {
       severity: "warning",
       category: receipt.category,
       message: "Business meal entries should be reviewed carefully before accountant export.",
-      evidenceRequirements: ["Attendee", "Business purpose", "Receipt/invoice evidence"]
+      evidenceRequirements: ["Attendee", "Business purpose", "Receipt/invoice evidence"],
+      ...meta
     };
   }
 
   if (receipt.category === "Hardware / equipment" && receipt.amount >= 800) {
     return {
       id: `asset_${receipt.id}`,
-      title: `${receipt.merchant}: higher-value equipment`,
+      title: `${receipt.merchant}: higher-value equipment",
       severity: "warning",
       category: receipt.category,
       message: "Higher-value equipment may need accountant review for treatment and usage allocation.",
-      evidenceRequirements: ["Invoice", "Business usage percentage", "Asset context"]
+      evidenceRequirements: ["Invoice", "Business usage percentage", "Asset context"],
+      ...meta
+    };
+  }
+
+  if (receipt.category === "Rent / home office") {
+    return {
+      id: `home_office_${receipt.id}`,
+      title: `${receipt.merchant}: home office review required`,
+      severity: "warning",
+      category: receipt.category,
+      message: "Home office related costs should stay behind accountant review.",
+      evidenceRequirements: ["Workspace context", "Business-use context", "Supporting evidence"],
+      ...meta
     };
   }
 
