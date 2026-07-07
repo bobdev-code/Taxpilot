@@ -12,12 +12,12 @@
     "dev:web": "npm run dev --workspace @taxpilot/web",
     "dev:api": "npm run dev --workspace @taxpilot/api",
     "build": "npm run build --workspace @taxpilot/shared && npm run build --workspace @taxpilot/api && npm run build --workspace @taxpilot/web",
-    "build:web": "npm run build --workspace @taxpilot/web",
+    "build:web": "npm run build --workspace @taxpilot/web && node scripts/write-vercel-api-entry.mjs",
     "build:api": "npm run build --workspace @taxpilot/api",
     "build:shared": "npm run build --workspace @taxpilot/shared",
     "prisma:validate": "npm run prisma:validate --workspace @taxpilot/db"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   }
 }
