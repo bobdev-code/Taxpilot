@@ -16,21 +16,16 @@ export interface CreateReceiptApiResponse {
   persistence: ApiPersistenceInfo;
 }
 
+export interface ReceiptUpdateApiResponse {
+  receipt: Receipt;
+  persistence: ApiPersistenceInfo;
+}
+
 export interface ExportApiResponse {
   generatedAt: string;
   phase: string;
-  disclaimer: string;
   persistence: ApiPersistenceInfo;
-  receipts: Array<{
-    id: string;
-    merchant: string;
-    date: string;
-    amount: number;
-    category: string;
-    status: string;
-    openQuestions: string[];
-    preliminaryExplanation?: string;
-  }>;
+  receipts: Receipt[];
 }
 
 export class ReceiptApiError extends Error {
@@ -59,6 +54,15 @@ export async function createReceiptViaApi(input: ReceiptDraftInput): Promise<Cre
     body: JSON.stringify(input)
   });
   return readJson<CreateReceiptApiResponse>(response);
+}
+
+export async function markQuestionAnsweredViaApi(receiptId: string, questionId: string): Promise<ReceiptUpdateApiResponse> {
+  const response = await fetch(`/api/receipts/${encodeURIComponent(receiptId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "mark_question_answered", questionId })
+  });
+  return readJson<ReceiptUpdateApiResponse>(response);
 }
 
 export async function fetchBackendExport(): Promise<ExportApiResponse> {
