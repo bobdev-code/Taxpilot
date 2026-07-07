@@ -10,6 +10,8 @@ TaxPilot AI is a university MVP foundation for a future SaaS product that helps 
 
 Phase 4 introduces a backend-ready API contract for validated receipt creation and export preparation.
 
+Deployment target: single Vercel project `taxpilot`.
+
 Implemented so far:
 
 - React + TypeScript + Vite web app
