@@ -12,7 +12,8 @@ This repository intentionally implements only the foundation:
 
 - React + TypeScript + Vite web app
 - Tailwind CSS SaaS dashboard shell
-- Node.js + Express API foundation
+- Node.js + Express API foundation for local development
+- Vercel serverless API routes for the single deployed project
 - Shared TypeScript domain model
 - Mock dashboard and receipt data
 - Prisma SQLite schema for the future database layer
@@ -24,7 +25,8 @@ No OCR, real AI calls, tax scraping, production authentication, or legally bindi
 
 ```txt
 /apps/web          React + Vite + Tailwind frontend
-/apps/api          Express API returning Phase 1 mock data
+/apps/api          Express API foundation for local/dev backend work
+/api               Vercel serverless routes used by the merged deployment
 /packages/shared  Shared TypeScript types and mock data
 /packages/db      Prisma schema for SQLite MVP database foundation
 /packages/rules   Placeholder for deterministic rule engine
@@ -32,8 +34,6 @@ No OCR, real AI calls, tax scraping, production authentication, or legally bindi
 /packages/ocr     Placeholder for future OCR pipeline
 /docs             Architecture and phase documentation
 ```
-
-The structure is intentionally compatible with a future migration from SQLite to PostgreSQL and with a later split into deployable services.
 
 ## Setup
 
@@ -48,10 +48,63 @@ Install dependencies:
 npm install
 ```
 
-Validate the Prisma schema:
+Build the deployed web app and shared package:
 
 ```bash
-# Optional: set this if you do not create packages/db/.env from .env.example
+npm run build:shared && npm run build:web
+```
+
+Run the web app locally:
+
+```bash
+npm run dev:web
+```
+
+Run the local Express API in a second terminal:
+
+```bash
+npm run dev:api
+```
+
+Default local URLs:
+
+- Web: `http://localhost:5173`
+- Local Express API: `http://localhost:4000`
+- Local health check: `http://localhost:4000/api/health`
+
+## API endpoints
+
+Phase 1 exposes read-only mock endpoints both in the local Express API and in the merged Vercel project:
+
+- `GET /api/health`
+- `GET /api/dashboard`
+- `GET /api/receipts`
+- `GET /api/receipts/:id`
+
+## Vercel deployment
+
+Use one Vercel project for Phase 1:
+
+- Project: `taxpilot`
+- Root Directory: repository root
+- Framework: Vite
+- Install Command: `npm install --ignore-scripts`
+- Build Command: `npm run build:shared && npm run build:web`
+- Output Directory: `apps/web/dist`
+
+The root `/api` directory contains Vercel serverless functions, so the same deployment serves the dashboard and the mock Phase 1 API endpoints. The older separate `taxpilot-api` Vercel project is no longer required and can be deleted or disconnected in Vercel.
+
+## Prisma foundation
+
+The Prisma schema is located at:
+
+```txt
+packages/db/prisma/schema.prisma
+```
+
+Validate the Prisma schema on a normal machine with Prisma engine access:
+
+```bash
 # macOS/Linux
 DATABASE_URL="file:./dev.db" npm run prisma:validate
 
@@ -59,59 +112,23 @@ DATABASE_URL="file:./dev.db" npm run prisma:validate
 $env:DATABASE_URL="file:./dev.db"; npm run prisma:validate
 ```
 
-Build all implemented workspaces:
-
-```bash
-npm run build
-```
-
-Run the API locally:
-
-```bash
-npm run dev:api
-```
-
-Run the web app locally in a second terminal:
-
-```bash
-npm run dev:web
-```
-
-Default local URLs:
-
-- Web: `http://localhost:5173`
-- API: `http://localhost:4000`
-- Health check: `http://localhost:4000/api/health`
-
-## API endpoints
-
-Phase 1 exposes read-only mock endpoints:
-
-- `GET /api/health`
-- `GET /api/dashboard`
-- `GET /api/receipts`
-- `GET /api/receipts/:id`
-
-## Validation note
-
-The web and API builds are independent from Prisma engine generation in Phase 1. If Prisma engine downloads are blocked in your environment, `npm install --ignore-scripts` can still be used to inspect and build the web/API foundation, but `npm run prisma:validate` requires Prisma engine access.
-
 ## Scripts
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev:web` | Start the Vite frontend |
-| `npm run dev:api` | Start the Express API with tsx |
+| `npm run dev:api` | Start the local Express API with tsx |
 | `npm run build` | Build shared package, API, and web app |
 | `npm run build:web` | Build frontend only |
-| `npm run build:api` | Build API only |
+| `npm run build:api` | Build local Express API only |
 | `npm run build:shared` | Build shared package only |
 | `npm run prisma:validate` | Validate Prisma schema |
 
 ## Architecture overview
 
 - `packages/shared` owns the domain language: receipts, categories, statuses, readiness score, missing questions, regulation updates, and calendar events.
-- `apps/api` is intentionally thin in Phase 1 and returns mock data from `packages/shared`.
+- `api` exposes the deployed Phase 1 mock API inside the same Vercel project as the web app.
+- `apps/api` remains available as a local Express API foundation for later backend work.
 - `apps/web` renders a polished SaaS shell with dashboard KPIs, receipt list, readiness score, action items, and safety copy.
 - `packages/db` contains the Prisma schema but is not wired into runtime yet.
 - `packages/rules`, `packages/ai`, and `packages/ocr` are placeholders to document future module boundaries without overbuilding.
