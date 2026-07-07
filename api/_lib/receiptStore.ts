@@ -102,8 +102,7 @@ async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise
       apikey: config.key,
       Authorization: `Bearer ${config.key}`,
       "Content-Type": "application/json",
-      Prefer: "return=representation",
-      ...(init.headers ?? {})
+      Prefer: "return=representation"
     }
   });
 
@@ -143,32 +142,24 @@ async function updateReceiptInSupabase(receipt: Receipt): Promise<Receipt> {
 }
 
 export async function listReceipts(): Promise<Receipt[]> {
-  if (getSupabaseConfig()) {
-    return listReceiptsFromSupabase();
-  }
+  if (getSupabaseConfig()) return listReceiptsFromSupabase();
   return receiptStore;
 }
 
 export async function findReceipt(id: string): Promise<Receipt | undefined> {
-  if (getSupabaseConfig()) {
-    return findReceiptInSupabase(id);
-  }
+  if (getSupabaseConfig()) return findReceiptInSupabase(id);
   return receiptStore.find((receipt) => receipt.id === id);
 }
 
 export async function createReceipt(input: ReceiptDraftInput): Promise<{ ok: true; receipt: Receipt } | { ok: false; issues: ReturnType<typeof validateReceiptInput>["issues"] }> {
   const validation = validateReceiptInput(input);
-  if (!validation.ok) {
-    return { ok: false, issues: validation.issues };
-  }
+  if (!validation.ok) return { ok: false, issues: validation.issues };
 
   const receipt = createEvaluatedReceipt(validation.data, {
     id: `api_rec_${Date.now()}`
   });
 
-  if (getSupabaseConfig()) {
-    return { ok: true, receipt: await insertReceiptIntoSupabase(receipt) };
-  }
+  if (getSupabaseConfig()) return { ok: true, receipt: await insertReceiptIntoSupabase(receipt) };
 
   receiptStore.unshift(receipt);
   return { ok: true, receipt };
@@ -187,9 +178,7 @@ export async function markQuestionAnswered(receiptId: string, questionId: string
     updatedAt: new Date().toISOString()
   };
 
-  if (getSupabaseConfig()) {
-    return updateReceiptInSupabase(updatedReceipt);
-  }
+  if (getSupabaseConfig()) return updateReceiptInSupabase(updatedReceipt);
 
   const index = receiptStore.findIndex((item) => item.id === receiptId);
   if (index >= 0) receiptStore[index] = updatedReceipt;
