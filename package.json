@@ -2,7 +2,7 @@
   "name": "taxpilot-ai",
   "private": true,
   "version": "0.1.0",
-  "description": "TaxPilot AI Phase 1 monorepo foundation for a German freelancer tax workflow SaaS MVP.",
+  "description": "TaxPilot AI Phase 3 monorepo foundation for a German freelancer tax workflow SaaS MVP.",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -11,14 +11,12 @@
   "scripts": {
     "dev:web": "npm run dev --workspace @taxpilot/web",
     "dev:api": "npm run dev --workspace @taxpilot/api",
-    "build": "npm run build --workspace @taxpilot/shared && npm run build --workspace @taxpilot/api && npm run build --workspace @taxpilot/web",
+    "build": "npm run build --workspace @taxpilot/shared && npm run build --workspace @taxpilot/rules && npm run build --workspace @taxpilot/api && npm run build --workspace @taxpilot/web",
     "build:web": "npm run build --workspace @taxpilot/web",
     "build:api": "npm run build --workspace @taxpilot/api",
     "build:shared": "npm run build --workspace @taxpilot/shared",
+    "build:rules": "npm run build --workspace @taxpilot/rules",
     "prisma:validate": "npm run prisma:validate --workspace @taxpilot/db"
-  },
-  "devDependencies": {
-    "@vercel/node": "^5.3.21"
   },
   "engines": {
     "node": ">=20.0.0 <25.0.0"
