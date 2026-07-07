@@ -1,0 +1,22 @@
+{
+  "name": "@taxpilot/tax-rules",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Source-backed German tax rule register for TaxPilot AI workflow checks.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
