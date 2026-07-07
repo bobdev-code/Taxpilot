@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { getCategoryRuleMetadata } from "@taxpilot/rules";
 import type { Receipt } from "@taxpilot/shared";
 import { formatCurrency, formatDate } from "../lib/format";
@@ -46,7 +46,7 @@ function timeline(receipt: Receipt) {
   ];
 }
 
-function TabButton({ tab, activeTab, onClick, children }: { tab: DetailTab; activeTab: DetailTab; onClick: (tab: DetailTab) => void; children: React.ReactNode }) {
+function TabButton({ tab, activeTab, onClick, children }: { tab: DetailTab; activeTab: DetailTab; onClick: (tab: DetailTab) => void; children: ReactNode }) {
   const active = tab === activeTab;
   return (
     <button
