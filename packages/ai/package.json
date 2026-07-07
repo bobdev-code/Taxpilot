@@ -1,0 +1,10 @@
+{
+  "name": "@taxpilot/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI orchestration placeholder for future phases.",
+  "scripts": {
+    "build": "echo '@taxpilot/ai is intentionally a Phase 1 placeholder'"
+  }
+}

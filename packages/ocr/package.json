@@ -1,0 +1,10 @@
+{
+  "name": "@taxpilot/ocr",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OCR pipeline placeholder for future phases.",
+  "scripts": {
+    "build": "echo '@taxpilot/ocr is intentionally a Phase 1 placeholder'"
+  }
+}
