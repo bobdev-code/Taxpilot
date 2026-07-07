@@ -10,6 +10,7 @@ import {
   type ReceiptDraftInput,
   type ValidationIssue
 } from "@taxpilot/shared";
+import { AccountantPackageSummary } from "./components/AccountantPackageSummary";
 import { ReceiptRuleExplanation } from "./components/ReceiptRuleExplanation";
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
@@ -351,6 +352,9 @@ export default function App() {
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">Structured package</h2>
               </div>
               <button onClick={downloadExport} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Download JSON</button>
+            </div>
+            <div className="mt-6">
+              <AccountantPackageSummary receipts={receipts} />
             </div>
             <pre className="mt-6 max-h-[420px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs leading-5 text-slate-100">{JSON.stringify(exportPreview, null, 2)}</pre>
           </article>
