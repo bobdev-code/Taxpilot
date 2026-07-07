@@ -12,7 +12,7 @@ export default function handler(req: ApiRequest, res: JsonResponse) {
 
   if (req.method === "POST") {
     const result = createReceipt((req.body ?? {}) as Record<string, unknown>);
-    if (!result.ok) {
+    if (result.ok === false) {
       res.status(400).json({
         error: "Invalid receipt input",
         issues: result.issues
