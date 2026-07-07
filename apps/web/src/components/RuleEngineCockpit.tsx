@@ -15,10 +15,10 @@ export function RuleEngineCockpit({ receipts }: { receipts: Receipt[] }) {
     <section id="rule-engine" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">Phase 3 deterministic rule engine</p>
+          <p className="text-sm font-medium text-slate-500">Phase 6.1 source-backed rule engine</p>
           <h2 className="mt-1 text-2xl font-semibold text-slate-950">Rule cockpit</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            This layer evaluates the current workspace with transparent deterministic checks. It does not infer tax certainty and does not replace a certified advisor.
+            This layer evaluates the current workspace with transparent deterministic checks and source-backed metadata. It does not infer tax certainty and does not replace a certified advisor.
           </p>
         </div>
         <div className="rounded-2xl bg-slate-950 px-5 py-4 text-white">
@@ -64,6 +64,14 @@ export function RuleEngineCockpit({ receipts }: { receipts: Receipt[] }) {
                     <li key={requirement}>• {requirement}</li>
                   ))}
                 </ul>
+                {insight.taxRuleMetadata ? (
+                  <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-600">
+                    <p className="font-semibold uppercase tracking-wide text-slate-500">Rule metadata</p>
+                    <p className="mt-2"><span className="font-semibold text-slate-700">Rules:</span> {insight.taxRuleMetadata.taxRuleIds.join(", ")}</p>
+                    <p><span className="font-semibold text-slate-700">Sources:</span> {insight.taxRuleMetadata.sourceIds.join(", ")}</p>
+                    <p><span className="font-semibold text-slate-700">Review:</span> {insight.taxRuleMetadata.reviewLevel}</p>
+                  </div>
+                ) : null}
               </article>
             )) : (
               <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700">No rule blockers detected yet.</p>
