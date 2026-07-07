@@ -1,4 +1,12 @@
-import type { ExpenseCategory, Receipt } from "@taxpilot/shared";
+import {
+  buildReceiptDescription,
+  type ExpenseCategory,
+  type MissingInformationQuestion,
+  type NormalizedReceiptInput,
+  type Receipt,
+  type ReceiptStatus,
+  type RuleEvaluationResult
+} from "@taxpilot/shared";
 
 export type RuleSeverity = "info" | "warning" | "critical";
 
@@ -20,6 +28,79 @@ export interface WorkspaceRuleEvaluation {
   criticalBlockers: number;
   insights: WorkspaceRuleInsight[];
   recommendedNextActions: string[];
+}
+
+export interface ReceiptEvaluation {
+  status: ReceiptStatus;
+  missingInformation: MissingInformationQuestion[];
+  ruleEvaluation: RuleEvaluationResult;
+  recommendedForAccountantReview: boolean;
+}
+
+export interface CreateReceiptOptions {
+  id?: string;
+  now?: string;
+}
+
+function createQuestion(receiptId: string, fieldKey: string, question: string): MissingInformationQuestion {
+  return { id: `${receiptId}_${fieldKey}`, receiptId, fieldKey, question, isRequiredForExport: true, status: "open" };
+}
+
+export function evaluateReceipt(receipt: Pick<Receipt, "id" | "merchant" | "amount" | "category" | "description">, now = new Date().toISOString()): ReceiptEvaluation {
+  const missing: MissingInformationQuestion[] = [];
+  const description = receipt.description?.toLowerCase() ?? "";
+
+  if (receipt.category === "Business meals") {
+    if (!description.includes("attendee:")) missing.push(createQuestion(receipt.id, "businessPartnerName", "Who attended the business meal?"));
+    if (!description.includes("purpose:")) missing.push(createQuestion(receipt.id, "businessPurpose", "What was the concrete business purpose?"));
+  }
+
+  if (receipt.category === "Hardware / equipment" && receipt.amount >= 800 && !description.includes("business usage:")) {
+    missing.push(createQuestion(receipt.id, "businessUsagePercentage", "What estimated percentage is used for business purposes?"));
+  }
+
+  if ((receipt.category === "Travel" || receipt.category === "Other") && !description.trim()) {
+    missing.push(createQuestion(receipt.id, "businessContext", "Add short business context before export."));
+  }
+
+  const recommendedForAccountantReview = ["Business meals", "Hardware / equipment", "Other"].includes(receipt.category);
+  const status: ReceiptStatus = missing.length > 0 ? "needs_information" : recommendedForAccountantReview ? "needs_accountant_review" : "potentially_deductible";
+
+  return {
+    status,
+    missingInformation: missing,
+    recommendedForAccountantReview,
+    ruleEvaluation: {
+      id: `rule_${receipt.id}`,
+      receiptId: receipt.id,
+      classification: missing.length > 0 ? "needs_more_information" : recommendedForAccountantReview ? "recommended_for_accountant_review" : "preliminary",
+      riskLevel: missing.length > 0 || recommendedForAccountantReview ? "medium" : "low",
+      explanation: missing.length > 0
+        ? "Deterministic Phase 4 rule check found missing context before export."
+        : "Deterministic Phase 4 rule check prepared this item for accountant review.",
+      suggestedNextStep: missing.length > 0 ? "Clarify the open questions." : "Keep evidence available for accountant review.",
+      evaluatedAt: now
+    }
+  };
+}
+
+export function createEvaluatedReceipt(input: NormalizedReceiptInput, options: CreateReceiptOptions = {}): Receipt {
+  const now = options.now ?? new Date().toISOString();
+  const id = options.id ?? `rec_${Date.now()}`;
+  const base = {
+    id,
+    merchant: input.merchant,
+    amount: input.amount,
+    currency: "EUR" as const,
+    date: input.date,
+    category: input.category,
+    description: buildReceiptDescription(input),
+    preliminaryExplanation: "Created through the Phase 4 validated receipt contract. Classification is deterministic and preliminary.",
+    createdAt: now,
+    updatedAt: now
+  };
+
+  return { ...base, ...evaluateReceipt(base, now) };
 }
 
 function hasOpenQuestions(receipt: Receipt): boolean {
@@ -81,27 +162,10 @@ export function evaluateWorkspace(receipts: Receipt[]): WorkspaceRuleEvaluation 
   const readinessScore = Math.max(0, Math.min(100, baseScore - openQuestionCount * 4 - reviewItemCount * 2));
 
   const recommendedNextActions: string[] = [];
-  if (openQuestionCount > 0) {
-    recommendedNextActions.push("Clarify all open missing-information questions before export.");
-  }
-  if (reviewItemCount > 0) {
-    recommendedNextActions.push("Keep review-flagged items visible in the accountant export package.");
-  }
-  if (totalReceipts > 0) {
-    recommendedNextActions.push("Download the JSON export preview and treat it as a structured preparation file, not as a tax filing.");
-  }
-  if (recommendedNextActions.length === 0) {
-    recommendedNextActions.push("Add receipts manually to start deterministic rule evaluation.");
-  }
+  if (openQuestionCount > 0) recommendedNextActions.push("Clarify all open missing-information questions before export.");
+  if (reviewItemCount > 0) recommendedNextActions.push("Keep review-flagged items visible in the accountant export package.");
+  if (totalReceipts > 0) recommendedNextActions.push("Download the JSON export preview and treat it as a structured preparation file, not as a tax filing.");
+  if (recommendedNextActions.length === 0) recommendedNextActions.push("Add receipts manually to start deterministic rule evaluation.");
 
-  return {
-    readinessScore,
-    exportReadyReceipts,
-    totalReceipts,
-    openQuestionCount,
-    reviewItemCount,
-    criticalBlockers,
-    insights,
-    recommendedNextActions
-  };
+  return { readinessScore, exportReadyReceipts, totalReceipts, openQuestionCount, reviewItemCount, criticalBlockers, insights, recommendedNextActions };
 }
