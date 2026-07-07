@@ -1,7 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-const targetFile = resolve("apps/web/dist/index.js");
+const targetFiles = [
+  resolve("apps/web/dist/index.js"),
+  resolve("apps/api/apps/web/dist/index.js")
+];
 
 const entry = `import cors from "cors";
 import express from "express";
@@ -54,6 +57,8 @@ app.get("/api/receipts/:id", (req, res) => {
 export default app;
 `;
 
-await mkdir(dirname(targetFile), { recursive: true });
-await writeFile(targetFile, entry, "utf8");
-console.log(`Wrote Vercel API entry to ${targetFile}`);
+for (const targetFile of targetFiles) {
+  await mkdir(dirname(targetFile), { recursive: true });
+  await writeFile(targetFile, entry, "utf8");
+  console.log(`Wrote Vercel API entry to ${targetFile}`);
+}
