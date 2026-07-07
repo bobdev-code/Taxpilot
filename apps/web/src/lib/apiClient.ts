@@ -1,3 +1,4 @@
+import type { WorkspaceRuleEvaluation } from "@taxpilot/rules";
 import type { Receipt, ReceiptDraftInput, ValidationIssue } from "@taxpilot/shared";
 
 export interface ApiPersistenceInfo {
@@ -25,6 +26,7 @@ export interface ExportApiResponse {
   generatedAt: string;
   phase: string;
   persistence: ApiPersistenceInfo;
+  workspaceRuleEvaluation?: WorkspaceRuleEvaluation;
   receipts: Receipt[];
 }
 
