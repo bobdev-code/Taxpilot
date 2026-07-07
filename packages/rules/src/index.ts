@@ -7,6 +7,8 @@ import {
   type ReceiptStatus,
   type RuleEvaluationResult
 } from "@taxpilot/shared";
+import { attachCategoryRuleMetadata } from "./taxRuleMetadataBridge.js";
+import type { CategoryRuleMetadata } from "./taxRuleMetadata.js";
 
 export type RuleSeverity = "info" | "warning" | "critical";
 
@@ -17,6 +19,7 @@ export interface WorkspaceRuleInsight {
   category?: ExpenseCategory | "Workspace";
   message: string;
   evidenceRequirements: string[];
+  taxRuleMetadata?: CategoryRuleMetadata;
 }
 
 export interface WorkspaceRuleEvaluation {
@@ -155,7 +158,10 @@ export function evaluateWorkspace(receipts: Receipt[]): WorkspaceRuleEvaluation 
   const openQuestionCount = receipts.reduce((sum, receipt) => sum + receipt.missingInformation.filter((question) => question.status === "open").length, 0);
   const exportReadyReceipts = receipts.filter((receipt) => !hasOpenQuestions(receipt)).length;
   const reviewItemCount = receipts.filter(isReviewItem).length;
-  const insights = receipts.map(createInsight).filter((insight): insight is WorkspaceRuleInsight => Boolean(insight));
+  const insights = receipts
+    .map(createInsight)
+    .filter((insight): insight is WorkspaceRuleInsight => Boolean(insight))
+    .map(attachCategoryRuleMetadata);
   const criticalBlockers = insights.filter((insight) => insight.severity === "critical").length;
 
   const baseScore = totalReceipts === 0 ? 0 : Math.round((exportReadyReceipts / totalReceipts) * 100);
