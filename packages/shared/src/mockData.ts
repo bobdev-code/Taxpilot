@@ -76,6 +76,38 @@ export const mockReceipts: Receipt[] = [
     updatedAt: now
   },
   {
+    id: "rec_travel_001",
+    merchant: "Deutsche Bahn",
+    amount: 89.9,
+    currency: "EUR",
+    date: "2026-06-21",
+    category: "Travel",
+    status: "needs_information",
+    description: "Train ticket for a potential client meeting.",
+    missingInformation: [
+      {
+        id: "q_travel_business_context",
+        receiptId: "rec_travel_001",
+        question: "Which client, project or business purpose was this trip connected to?",
+        fieldKey: "businessPurpose",
+        isRequiredForExport: true,
+        status: "open"
+      }
+    ],
+    ruleEvaluation: {
+      id: "rule_travel_001",
+      receiptId: "rec_travel_001",
+      classification: "needs_more_information",
+      riskLevel: "medium",
+      explanation: "Travel expenses need a clear business context before accountant export.",
+      suggestedNextStep: "Add destination, client or project context and travel purpose.",
+      evaluatedAt: now
+    },
+    recommendedForAccountantReview: false,
+    createdAt: now,
+    updatedAt: now
+  },
+  {
     id: "rec_adobe_001",
     merchant: "Adobe",
     amount: 59,
@@ -98,6 +130,30 @@ export const mockReceipts: Receipt[] = [
     recommendedForAccountantReview: false,
     createdAt: now,
     updatedAt: now
+  },
+  {
+    id: "rec_homeoffice_001",
+    merchant: "Home Office Rent",
+    amount: 350,
+    currency: "EUR",
+    date: "2026-06-30",
+    category: "Rent / home office",
+    status: "needs_accountant_review",
+    description: "Monthly workspace cost for freelance work.",
+    preliminaryExplanation: "Home office costs are review-sensitive and should remain visible for accountant review.",
+    missingInformation: [],
+    ruleEvaluation: {
+      id: "rule_homeoffice_001",
+      receiptId: "rec_homeoffice_001",
+      classification: "recommended_for_accountant_review",
+      riskLevel: "medium",
+      explanation: "Home office costs should be reviewed by an accountant. This prototype does not decide final tax treatment.",
+      suggestedNextStep: "Keep supporting workspace evidence and discuss treatment with the accountant.",
+      evaluatedAt: now
+    },
+    recommendedForAccountantReview: true,
+    createdAt: now,
+    updatedAt: now
   }
 ];
 
@@ -111,33 +167,34 @@ export const mockDashboardSummary: DashboardSummary = {
     taxAdvisorStatus: "Works with an accountant quarterly"
   },
   totalReceipts: mockReceipts.length,
-  totalExpenses: 1595,
+  totalExpenses: 2034.9,
   estimatedPotentiallyDeductibleAmount: 59,
-  openQuestions: 3,
-  pendingReviewItems: 2,
+  openQuestions: 4,
+  pendingReviewItems: 3,
   readiness: {
-    score: 62,
-    label: "In progress",
-    completedReceipts: 1,
-    totalReceipts: 3,
-    openQuestions: 3,
-    pendingReviewItems: 2,
+    score: 24,
+    label: "Needs evidence",
+    completedReceipts: 2,
+    totalReceipts: 5,
+    openQuestions: 4,
+    pendingReviewItems: 3,
     blockers: [
       "Business usage percentage missing for Lenovo receipt",
-      "Business meal attendee and purpose missing"
+      "Business meal attendee and purpose missing",
+      "Travel business context missing"
     ]
   },
   kpis: [
     {
       label: "Total receipts",
-      value: "3",
+      value: "5",
       helperText: "Demo receipts in current workspace",
       tone: "neutral"
     },
     {
       label: "Total expenses",
-      value: "€1,595",
-      helperText: "Based on uploaded and manual demo receipts",
+      value: "€2,035",
+      helperText: "Based on demo receipt workspace",
       tone: "neutral"
     },
     {
@@ -148,19 +205,19 @@ export const mockDashboardSummary: DashboardSummary = {
     },
     {
       label: "Open questions",
-      value: "3",
+      value: "4",
       helperText: "Information needed before export",
       tone: "warning"
     },
     {
       label: "Pending review",
-      value: "2",
+      value: "3",
       helperText: "Recommended for accountant review",
       tone: "warning"
     },
     {
       label: "Export readiness",
-      value: "62%",
+      value: "24%",
       helperText: "Ready once open questions are resolved",
       tone: "warning"
     }
@@ -171,12 +228,14 @@ export const mockDashboardSummary: DashboardSummary = {
     { month: "Mar", amount: 380 },
     { month: "Apr", amount: 910 },
     { month: "May", amount: 640 },
-    { month: "Jun", amount: 1595 }
+    { month: "Jun", amount: 2034.9 }
   ],
   categoryBreakdown: [
     { category: "Hardware / equipment", amount: 1450 },
     { category: "Business meals", amount: 86 },
-    { category: "Software / subscriptions", amount: 59 }
+    { category: "Travel", amount: 89.9 },
+    { category: "Software / subscriptions", amount: 59 },
+    { category: "Rent / home office", amount: 350 }
   ],
   recentReceipts: mockReceipts,
   actionItems: [
@@ -190,6 +249,12 @@ export const mockDashboardSummary: DashboardSummary = {
       id: "action_restaurant_context",
       title: "Complete business meal context",
       description: "Add partner name and business purpose for the restaurant receipt.",
+      priority: "high"
+    },
+    {
+      id: "action_travel_context",
+      title: "Complete travel context",
+      description: "Add client, project and purpose information for the Deutsche Bahn receipt.",
       priority: "high"
     },
     {
@@ -219,8 +284,6 @@ export const mockTaxCalendarEvents: TaxCalendarEvent[] = [
     title: "Quarterly accountant review",
     description: "Demo reminder to review open questions and export readiness with an accountant.",
     dueDate: "2026-07-15",
-    jurisdiction: "Germany",
-    audience: "freelancer",
     status: "upcoming"
   }
 ];
