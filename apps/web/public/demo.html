@@ -12,10 +12,15 @@
   <main>
     <section>
       <h1>TaxPilot Demo Mode</h1>
-      <p>Click the button to load the prepared presentation workspace in this browser.</p>
+      <p>Click the button to reset this browser to the built-in demo workspace.</p>
       <button id="loadDemo">Activate demo data</button>
     </section>
   </main>
-  <script src="/demo-seed.js"></script>
+  <script>
+    document.getElementById('loadDemo').addEventListener('click', function () {
+      localStorage.removeItem('taxpilot.phase5.receipts');
+      window.location.href = '/';
+    });
+  </script>
 </body>
 </html>
