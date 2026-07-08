@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createEvaluatedReceipt, getCategoryRuleMetadata } from "@taxpilot/rules";
 import {
-  expenseCategories,
   mockReceipts,
   validateReceiptInput,
   type ExpenseCategory,
@@ -10,17 +9,8 @@ import {
   type ReceiptDraftInput,
   type ValidationIssue
 } from "@taxpilot/shared";
-import { AccountantPackageSummary } from "./components/AccountantPackageSummary";
-import { ReceiptDetailPanel } from "./components/ReceiptDetailPanel";
-import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
-import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
-import { StatusBadge } from "./components/StatusBadge";
-import { TaxPilotAppShell } from "./components/TaxPilotAppShell";
-import { TaxPilotDashboardHero } from "./components/TaxPilotDashboardHero";
-import { TaxPilotLovableOverview } from "./components/TaxPilotLovableOverview";
-import { TaxRuleRegistryPanel } from "./components/TaxRuleRegistryPanel";
+import { FinalLovableTaxPilotWorkspace } from "./components/FinalLovableTaxPilotWorkspace";
 import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, markQuestionAnsweredViaApi, type ApiPersistenceInfo } from "./lib/apiClient";
-import { formatCurrency, formatDate } from "./lib/format";
 
 const STORAGE_KEY = "taxpilot.phase5.receipts";
 
@@ -131,7 +121,7 @@ export default function App() {
 
   const exportPreview = useMemo(() => ({
     generatedAt: new Date().toISOString(),
-    phase: "6.1",
+    phase: "final-ui",
     source: exportSource,
     disclaimer: "Preliminary workflow export. Not legally binding tax advice.",
     readinessScore,
@@ -215,132 +205,28 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  const backendBadge = <BackendBadge state={backendState} persistence={persistence} />;
-
   return (
-    <TaxPilotAppShell backendBadge={backendBadge}>
-      <main className="mx-auto max-w-7xl space-y-7 px-4 py-6 sm:px-6 lg:px-8">
-        <TaxPilotDashboardHero
-          receipts={receipts}
-          totalExpenses={totalExpenses}
-          openQuestionCount={openQuestions.length}
-          reviewCount={reviewCount}
-          readinessScore={readinessScore}
-          readyCount={readyCount}
-          backendBadge={backendBadge}
-        />
-
-        <SafetyDisclaimer />
-
-        <TaxPilotLovableOverview
-          receipts={receipts}
-          selectedReceiptId={selectedReceiptId}
-          setSelectedReceiptId={setSelectedReceiptId}
-          readinessScore={readinessScore}
-          openQuestionCount={openQuestions.length}
-          reviewCount={reviewCount}
-        />
-
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div>
-            <p className="text-sm font-semibold text-slate-950">Final UI integration layer</p>
-            <p className="mt-1 text-sm text-slate-500">Lovable-style dashboard shell connected to the existing TaxPilot rule engine, evidence workflow and accountant export logic.</p>
-          </div>
-          {backendBadge}
-        </section>
-
-        <RuleEngineCockpit receipts={receipts} />
-        <TaxRuleRegistryPanel />
-
-        <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Smart receipt intake</p>
-                <h2 className="mt-1 text-2xl font-semibold text-slate-950">Add an expense</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Only category-relevant optional fields are shown. The engine remains deterministic and review-focused.</p>
-              </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">category-aware</span>
-            </div>
-
-            {formIssues.length > 0 ? (
-              <div className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
-                {formIssues.map((issue) => <p key={`${issue.field}-${issue.message}`}>• {issue.field}: {issue.message}</p>)}
-              </div>
-            ) : null}
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <input value={form.merchant} onChange={(event) => setForm({ ...form, merchant: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Merchant" />
-              <input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} type="number" min="0" step="0.01" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Amount EUR" />
-              <input value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} type="date" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" />
-              <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ExpenseCategory })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4">
-                {expenseCategories.map((category) => <option key={category}>{category}</option>)}
-              </select>
-            </div>
-
-            <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-4 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business context for accountant review" />
-
-            {(showUsageField || showPartnerField || showPurposeField) ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                {showUsageField ? (
-                  <input value={form.businessUsagePercentage} onChange={(event) => setForm({ ...form, businessUsagePercentage: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business usage %" />
-                ) : null}
-                {showPartnerField ? (
-                  <input value={form.businessPartnerName} onChange={(event) => setForm({ ...form, businessPartnerName: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Attendee / recipient" />
-                ) : null}
-                {showPurposeField ? (
-                  <input value={form.businessPurpose} onChange={(event) => setForm({ ...form, businessPurpose: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business purpose" />
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={addReceipt} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-700">Add receipt</button>
-              <button onClick={resetDemo} className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Reset demo data</button>
-            </div>
-          </article>
-
-          <article className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 p-6">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Receipt workspace</p>
-                <h2 className="mt-1 text-2xl font-semibold text-slate-950">Review queue</h2>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {receipts.map((receipt) => (
-                    <tr key={receipt.id} onClick={() => setSelectedReceiptId(receipt.id)} className={`cursor-pointer transition hover:bg-slate-50 ${selectedReceipt?.id === receipt.id ? "bg-blue-50/50" : ""}`}>
-                      <td className="px-6 py-4"><p className="font-semibold text-slate-950">{receipt.merchant}</p><p className="mt-1 text-xs text-slate-500">{formatDate(receipt.date)} · {receipt.category}</p></td>
-                      <td className="px-6 py-4"><StatusBadge status={receipt.status} /></td>
-                      <td className="px-6 py-4 text-right font-semibold text-slate-950">{formatCurrency(receipt.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          {selectedReceipt ? <ReceiptDetailPanel receipt={selectedReceipt} onMarkQuestionAnswered={markQuestionAnswered} /> : null}
-
-          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Accountant export preview</p>
-                <h2 className="mt-1 text-2xl font-semibold text-slate-950">Structured package</h2>
-              </div>
-              <button onClick={downloadExport} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Download JSON</button>
-            </div>
-            <div className="mt-6">
-              <AccountantPackageSummary receipts={receipts} />
-            </div>
-            <pre className="mt-6 max-h-[420px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs leading-5 text-slate-100">{JSON.stringify(exportPreview, null, 2)}</pre>
-          </article>
-        </section>
-      </main>
-    </TaxPilotAppShell>
+    <FinalLovableTaxPilotWorkspace
+      receipts={receipts}
+      selectedReceipt={selectedReceipt}
+      selectedReceiptId={selectedReceiptId}
+      setSelectedReceiptId={setSelectedReceiptId}
+      form={form}
+      setForm={setForm}
+      formIssues={formIssues}
+      showUsageField={showUsageField}
+      showPartnerField={showPartnerField}
+      showPurposeField={showPurposeField}
+      addReceipt={addReceipt}
+      resetDemo={resetDemo}
+      markQuestionAnswered={markQuestionAnswered}
+      downloadExport={downloadExport}
+      totalExpenses={totalExpenses}
+      readinessScore={readinessScore}
+      openQuestionCount={openQuestions.length}
+      reviewCount={reviewCount}
+      backendBadge={<BackendBadge state={backendState} persistence={persistence} />}
+      exportPreview={exportPreview}
+    />
   );
 }
