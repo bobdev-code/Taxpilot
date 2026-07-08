@@ -173,7 +173,7 @@ export const mockDashboardSummary: DashboardSummary = {
   pendingReviewItems: 3,
   readiness: {
     score: 24,
-    label: "Needs evidence",
+    label: "Low readiness",
     completedReceipts: 2,
     totalReceipts: 5,
     openQuestions: 4,
@@ -284,6 +284,8 @@ export const mockTaxCalendarEvents: TaxCalendarEvent[] = [
     title: "Quarterly accountant review",
     description: "Demo reminder to review open questions and export readiness with an accountant.",
     dueDate: "2026-07-15",
+    jurisdiction: "Germany",
+    audience: "freelancer",
     status: "upcoming"
   }
 ];
