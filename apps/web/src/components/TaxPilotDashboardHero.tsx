@@ -12,6 +12,14 @@ type TaxPilotDashboardHeroProps = {
   backendBadge: ReactNode;
 };
 
+const navItems = [
+  { label: "Overview", href: "#overview" },
+  { label: "Receipts", href: "#receipts" },
+  { label: "Evidence Review", href: "#evidence-review" },
+  { label: "Rule Registry", href: "#rule-registry" },
+  { label: "Accountant Export", href: "#accountant-export" }
+];
+
 function MetricCard({ label, value, helper, tone = "neutral" }: { label: string; value: string; helper: string; tone?: "neutral" | "warning" | "success" }) {
   const toneClass = tone === "success" ? "border-emerald-200 bg-emerald-50/80" : tone === "warning" ? "border-amber-200 bg-amber-50/80" : "border-slate-200 bg-white";
   return (
@@ -25,10 +33,9 @@ function MetricCard({ label, value, helper, tone = "neutral" }: { label: string;
 
 export function TaxPilotDashboardHero({ receipts, totalExpenses, openQuestionCount, reviewCount, readinessScore, readyCount, backendBadge }: TaxPilotDashboardHeroProps) {
   const latestReceipts = receipts.slice(0, 4);
-  const readinessTone = readinessScore >= 75 ? "success" : readinessScore >= 45 ? "warning" : "neutral";
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 text-white shadow-soft">
+    <section id="overview" className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 text-white shadow-soft scroll-mt-6">
       <div className="grid lg:grid-cols-[260px_1fr]">
         <aside className="border-b border-white/10 bg-white/5 p-6 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-3">
@@ -39,10 +46,10 @@ export function TaxPilotDashboardHero({ receipts, totalExpenses, openQuestionCou
             </div>
           </div>
           <nav className="mt-8 space-y-2 text-sm">
-            {['Overview', 'Receipts', 'Evidence Review', 'Rule Registry', 'Accountant Export'].map((item, index) => (
-              <div key={item} className={`rounded-2xl px-4 py-3 ${index === 0 ? 'bg-white text-slate-950' : 'text-slate-300'}`}>
-                {item}
-              </div>
+            {navItems.map((item, index) => (
+              <a key={item.label} href={item.href} className={`block rounded-2xl px-4 py-3 transition hover:bg-white hover:text-slate-950 ${index === 0 ? "bg-white text-slate-950" : "text-slate-300"}`}>
+                {item.label}
+              </a>
             ))}
           </nav>
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/10 p-4">
@@ -60,6 +67,10 @@ export function TaxPilotDashboardHero({ receipts, totalExpenses, openQuestionCou
               </div>
               <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">German freelancer tax prep, without black-box tax advice.</h1>
               <p className="mt-5 max-w-3xl text-base leading-7 text-slate-300">TaxPilot turns scattered receipts into a structured review workspace: missing evidence, deterministic rule checks, source-backed metadata and accountant-ready export preparation.</p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <a href="#receipts" className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-100">Start receipt review</a>
+                <a href="#accountant-export" className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20">View accountant export</a>
+              </div>
             </div>
             <div className="min-w-[220px] rounded-[2rem] border border-white/10 bg-white/10 p-5">
               <p className="text-sm font-semibold text-slate-300">Export readiness</p>
@@ -85,20 +96,20 @@ export function TaxPilotDashboardHero({ receipts, totalExpenses, openQuestionCou
                   <p className="text-sm font-medium text-slate-500">Review activity</p>
                   <h2 className="mt-1 text-xl font-semibold">Latest receipts</h2>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">live workspace</span>
+                <a href="#receipts" className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200">open queue</a>
               </div>
               <div className="mt-5 divide-y divide-slate-100">
                 {latestReceipts.map((receipt) => (
-                  <div key={receipt.id} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
+                  <a key={receipt.id} href="#receipts" className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm transition hover:bg-slate-50">
                     <div>
                       <p className="font-semibold text-slate-950">{receipt.merchant}</p>
                       <p className="mt-1 text-xs text-slate-500">{receipt.category}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">{formatCurrency(receipt.amount)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{receipt.missingInformation.filter((q) => q.status === 'open').length} open</p>
+                      <p className="mt-1 text-xs text-slate-500">{receipt.missingInformation.filter((q) => q.status === "open").length} open</p>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </article>
@@ -110,6 +121,7 @@ export function TaxPilotDashboardHero({ receipts, totalExpenses, openQuestionCou
                 <p><span className="font-semibold text-white">TaxPilot engine:</span> deterministic receipt review, evidence questions and export metadata.</p>
                 <p><span className="font-semibold text-white">Final integration:</span> Lovable-inspired surface, TaxPilot-owned data and safety logic.</p>
               </div>
+              <a href="#rule-registry" className="mt-5 inline-flex rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">See rule metadata</a>
             </article>
           </div>
         </div>
