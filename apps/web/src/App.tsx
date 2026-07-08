@@ -15,6 +15,7 @@ import { ReceiptDetailPanel } from "./components/ReceiptDetailPanel";
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
+import { TaxPilotDashboardHero } from "./components/TaxPilotDashboardHero";
 import { TaxRuleRegistryPanel } from "./components/TaxRuleRegistryPanel";
 import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, markQuestionAnsweredViaApi, type ApiPersistenceInfo } from "./lib/apiClient";
 import { formatCurrency, formatDate } from "./lib/format";
@@ -84,16 +85,6 @@ function locallyMarkQuestionAnswered(receipt: Receipt, questionId: string): Rece
   };
 }
 
-function Kpi({ label, value, helper }: { label: string; value: string; helper: string }) {
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-sm leading-5 text-slate-500">{helper}</p>
-    </article>
-  );
-}
-
 function BackendBadge({ state, persistence }: { state: BackendState; persistence?: ApiPersistenceInfo }) {
   const label = state === "checking" ? "checking API" : state === "api-ready" ? `API: ${persistence?.mode ?? "ready"}` : "local fallback";
   const classes = state === "api-ready" ? "bg-emerald-50 text-emerald-700" : state === "checking" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-800";
@@ -132,6 +123,9 @@ export default function App() {
   const readyCount = receipts.filter((receipt) => receipt.missingInformation.every((question) => question.status !== "open")).length;
   const reviewCount = receipts.filter((receipt) => receipt.recommendedForAccountantReview || receipt.status === "needs_accountant_review").length;
   const readinessScore = receipts.length === 0 ? 0 : Math.max(0, Math.min(100, Math.round((readyCount / receipts.length) * 100 - openQuestions.length * 4)));
+  const showUsageField = ["Hardware / equipment", "Phone / internet", "Rent / home office"].includes(form.category);
+  const showPartnerField = ["Business meals", "Marketing"].includes(form.category);
+  const showPurposeField = ["Business meals", "Travel", "Marketing", "Rent / home office", "Other"].includes(form.category);
 
   const exportPreview = useMemo(() => ({
     generatedAt: new Date().toISOString(),
@@ -220,38 +214,26 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <main className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="rounded-[2rem] bg-navy-900 p-6 text-white shadow-soft sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-blue-100 ring-1 ring-white/10">Phase 6.1 rule registry</span>
-              <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">Source-backed tax workflow with durable-ready storage.</h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Receipt intake, deterministic rule checks and accountant export now reference a structured tax rule registry that can later move into Supabase.</p>
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
-              <p className="text-sm font-semibold text-blue-100">Export readiness</p>
-              <p className="mt-4 text-5xl font-semibold">{readinessScore}%</p>
-              <p className="mt-2 text-sm text-blue-100">{readyCount}/{receipts.length} receipts ready</p>
-            </div>
-          </div>
-        </header>
+    <div className="min-h-screen bg-slate-100">
+      <main className="mx-auto max-w-7xl space-y-7 px-4 py-6 sm:px-6 lg:px-8">
+        <TaxPilotDashboardHero
+          receipts={receipts}
+          totalExpenses={totalExpenses}
+          openQuestionCount={openQuestions.length}
+          reviewCount={reviewCount}
+          readinessScore={readinessScore}
+          readyCount={readyCount}
+          backendBadge={<BackendBadge state={backendState} persistence={persistence} />}
+        />
 
         <SafetyDisclaimer />
 
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-sm font-semibold text-slate-950">Storage and rule registry bridge</p>
-            <p className="mt-1 text-sm text-slate-500">Memory fallback remains safe for demos. Supabase can later provide durable receipt storage and a database-backed tax rule registry without changing the frontend API contract.</p>
+            <p className="text-sm font-semibold text-slate-950">Final UI integration layer</p>
+            <p className="mt-1 text-sm text-slate-500">Lovable-inspired dashboard surface connected to the existing TaxPilot rule engine, evidence workflow and accountant export logic.</p>
           </div>
           <BackendBadge state={backendState} persistence={persistence} />
-        </section>
-
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi label="Receipts" value={String(receipts.length)} helper="Demo, API and manually added items" />
-          <Kpi label="Total expenses" value={formatCurrency(totalExpenses)} helper="Preliminary workspace total" />
-          <Kpi label="Open questions" value={String(openQuestions.length)} helper="Must be clarified before export" />
-          <Kpi label="Review items" value={String(reviewCount)} helper="Recommended for accountant review" />
         </section>
 
         <RuleEngineCockpit receipts={receipts} />
@@ -261,10 +243,11 @@ export default function App() {
           <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-500">Validated receipt intake</p>
+                <p className="text-sm font-medium text-slate-500">Smart receipt intake</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">Add an expense</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Only category-relevant optional fields are shown. The engine remains deterministic and review-focused.</p>
               </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">storage-adapter</span>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">category-aware</span>
             </div>
 
             {formIssues.length > 0 ? (
@@ -284,11 +267,19 @@ export default function App() {
 
             <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-4 min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business context for accountant review" />
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              <input value={form.businessUsagePercentage} onChange={(event) => setForm({ ...form, businessUsagePercentage: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business usage %" />
-              <input value={form.businessPartnerName} onChange={(event) => setForm({ ...form, businessPartnerName: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Meal attendee" />
-              <input value={form.businessPurpose} onChange={(event) => setForm({ ...form, businessPurpose: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Meal/travel purpose" />
-            </div>
+            {(showUsageField || showPartnerField || showPurposeField) ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                {showUsageField ? (
+                  <input value={form.businessUsagePercentage} onChange={(event) => setForm({ ...form, businessUsagePercentage: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business usage %" />
+                ) : null}
+                {showPartnerField ? (
+                  <input value={form.businessPartnerName} onChange={(event) => setForm({ ...form, businessPartnerName: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Attendee / recipient" />
+                ) : null}
+                {showPurposeField ? (
+                  <input value={form.businessPurpose} onChange={(event) => setForm({ ...form, businessPurpose: event.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-100 transition focus:ring-4" placeholder="Business purpose" />
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
               <button onClick={addReceipt} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-700">Add receipt</button>
