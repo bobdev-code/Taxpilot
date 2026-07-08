@@ -13,6 +13,7 @@ import { FinalLovableTaxPilotWorkspace } from "./components/FinalLovableTaxPilot
 import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, markQuestionAnsweredViaApi, type ApiPersistenceInfo } from "./lib/apiClient";
 
 const STORAGE_KEY = "taxpilot.phase5.receipts";
+const ANSWERS_STORAGE_KEY = "taxpilot.phase5.evidenceAnswers";
 
 type BackendState = "checking" | "api-ready" | "local-fallback";
 
@@ -46,6 +47,17 @@ function loadReceipts(): Receipt[] {
     return Array.isArray(parsed) ? parsed : mockReceipts;
   } catch {
     return mockReceipts;
+  }
+}
+
+function loadEvidenceAnswers(): Record<string, string> {
+  const stored = window.localStorage.getItem(ANSWERS_STORAGE_KEY);
+  if (!stored) return {};
+  try {
+    const parsed = JSON.parse(stored) as Record<string, string>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
   }
 }
 
@@ -85,6 +97,7 @@ function BackendBadge({ state, persistence }: { state: BackendState; persistence
 
 export default function App() {
   const [receipts, setReceipts] = useState<Receipt[]>(() => loadReceipts());
+  const [evidenceAnswers, setEvidenceAnswers] = useState<Record<string, string>>(() => loadEvidenceAnswers());
   const [form, setForm] = useState<ReceiptForm>(initialForm);
   const [selectedReceiptId, setSelectedReceiptId] = useState(receipts[0]?.id ?? "");
   const [backendState, setBackendState] = useState<BackendState>("checking");
@@ -108,6 +121,10 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(receipts));
   }, [receipts]);
+
+  useEffect(() => {
+    window.localStorage.setItem(ANSWERS_STORAGE_KEY, JSON.stringify(evidenceAnswers));
+  }, [evidenceAnswers]);
 
   const selectedReceipt = receipts.find((receipt) => receipt.id === selectedReceiptId) ?? receipts[0];
   const openQuestions = receipts.flatMap((receipt) => receipt.missingInformation.filter((question) => question.status === "open"));
@@ -134,10 +151,13 @@ export default function App() {
       category: receipt.category,
       status: receipt.status,
       ruleMetadata: getCategoryRuleMetadata(receipt.category),
+      evidenceAnswers: receipt.missingInformation
+        .filter((question) => evidenceAnswers[question.id])
+        .map((question) => ({ question: question.question, answer: evidenceAnswers[question.id] })),
       openQuestions: receipt.missingInformation.filter((question) => question.status === "open").map((question) => question.question),
       preliminaryExplanation: receipt.ruleEvaluation?.explanation
     }))
-  }), [exportSource, persistence, readinessScore, receipts]);
+  }), [evidenceAnswers, exportSource, persistence, readinessScore, receipts]);
 
   async function addReceipt() {
     const draft = toDraftInput(form);
@@ -166,6 +186,17 @@ export default function App() {
   }
 
   async function markQuestionAnswered(receiptId: string, questionId: string) {
+    const receipt = receipts.find((item) => item.id === receiptId);
+    const question = receipt?.missingInformation.find((item) => item.id === questionId);
+    const currentAnswer = evidenceAnswers[questionId] ?? "";
+    const answer = window.prompt(question?.question ?? "Enter the evidence answer", currentAnswer);
+
+    if (!answer || !answer.trim()) {
+      return;
+    }
+
+    setEvidenceAnswers((current) => ({ ...current, [questionId]: answer.trim() }));
+
     try {
       const response = await markQuestionAnsweredViaApi(receiptId, questionId);
       setPersistence(response.persistence);
@@ -181,15 +212,17 @@ export default function App() {
 
   function resetDemo() {
     setReceipts(mockReceipts);
+    setEvidenceAnswers({});
     setSelectedReceiptId(mockReceipts[0]?.id ?? "");
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(ANSWERS_STORAGE_KEY);
   }
 
   async function downloadExport() {
     let payload: unknown = exportPreview;
     try {
       const apiExport = await fetchBackendExport();
-      payload = apiExport;
+      payload = { ...apiExport, browserEvidenceAnswers: evidenceAnswers };
       setPersistence(apiExport.persistence);
       setExportSource("api");
     } catch {
