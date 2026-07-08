@@ -15,7 +15,9 @@ import { ReceiptDetailPanel } from "./components/ReceiptDetailPanel";
 import { RuleEngineCockpit } from "./components/RuleEngineCockpit";
 import { SafetyDisclaimer } from "./components/SafetyDisclaimer";
 import { StatusBadge } from "./components/StatusBadge";
+import { TaxPilotAppShell } from "./components/TaxPilotAppShell";
 import { TaxPilotDashboardHero } from "./components/TaxPilotDashboardHero";
+import { TaxPilotLovableOverview } from "./components/TaxPilotLovableOverview";
 import { TaxRuleRegistryPanel } from "./components/TaxRuleRegistryPanel";
 import { createReceiptViaApi, fetchBackendExport, fetchReceiptsFromApi, markQuestionAnsweredViaApi, type ApiPersistenceInfo } from "./lib/apiClient";
 import { formatCurrency, formatDate } from "./lib/format";
@@ -213,8 +215,10 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  const backendBadge = <BackendBadge state={backendState} persistence={persistence} />;
+
   return (
-    <div className="min-h-screen bg-slate-100">
+    <TaxPilotAppShell backendBadge={backendBadge}>
       <main className="mx-auto max-w-7xl space-y-7 px-4 py-6 sm:px-6 lg:px-8">
         <TaxPilotDashboardHero
           receipts={receipts}
@@ -223,17 +227,26 @@ export default function App() {
           reviewCount={reviewCount}
           readinessScore={readinessScore}
           readyCount={readyCount}
-          backendBadge={<BackendBadge state={backendState} persistence={persistence} />}
+          backendBadge={backendBadge}
         />
 
         <SafetyDisclaimer />
 
+        <TaxPilotLovableOverview
+          receipts={receipts}
+          selectedReceiptId={selectedReceiptId}
+          setSelectedReceiptId={setSelectedReceiptId}
+          readinessScore={readinessScore}
+          openQuestionCount={openQuestions.length}
+          reviewCount={reviewCount}
+        />
+
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
             <p className="text-sm font-semibold text-slate-950">Final UI integration layer</p>
-            <p className="mt-1 text-sm text-slate-500">Lovable-inspired dashboard surface connected to the existing TaxPilot rule engine, evidence workflow and accountant export logic.</p>
+            <p className="mt-1 text-sm text-slate-500">Lovable-style dashboard shell connected to the existing TaxPilot rule engine, evidence workflow and accountant export logic.</p>
           </div>
-          <BackendBadge state={backendState} persistence={persistence} />
+          {backendBadge}
         </section>
 
         <RuleEngineCockpit receipts={receipts} />
@@ -328,6 +341,6 @@ export default function App() {
           </article>
         </section>
       </main>
-    </div>
+    </TaxPilotAppShell>
   );
 }
